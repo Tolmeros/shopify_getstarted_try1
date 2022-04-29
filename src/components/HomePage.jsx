@@ -12,6 +12,8 @@ import {
 import trophyImgUrl from "../assets/home-trophy.png";
 
 import { ProductsCard } from "./ProductsCard";
+//import { EmptyStatePage } from "./EmptyStatePage";
+import { ResourceListExample } from "./ResourceListExample";
 
 export function HomePage() {
   return (
@@ -79,7 +81,7 @@ export function HomePage() {
           <ProductsCard />
         </Layout.Section>
         <Layout.Section third>
-          <ProductsCard />
+          <ResourceListExample />
         </Layout.Section>
       </Layout>
     </Page>
