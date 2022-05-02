@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useState, useEffect} from 'react';
 import { gql, useQuery } from "@apollo/client";
 import {
   Avatar,
@@ -10,10 +10,13 @@ import {
   TextField,
   TextStyle,
   Stack,
-  Thumbnail
+  Thumbnail,
+  Pagination
 } from '@shopify/polaris';
 
 import { Loading, Banner } from "@shopify/app-bridge-react";
+
+const PRODUCTS_COUNT_ON_PAGE = 10;
 
 const GET_PRODUCTS = gql`
 query {
@@ -51,15 +54,74 @@ query {
 }
 `;
 
+const GET_PRODUCTS_PAGED = gql`
+query GetProductsPaged($count: Int, $cursor: String) {
+  products(first: $count, after: $cursor) {
+    edges {
+      cursor
+      node {
+        id
+        title
+        handle
+        descriptionHtml
+        images(first: 1) {
+          edges {
+            node {
+              id
+              originalSrc
+              altText
+            }
+          }
+        }
+        variants(first: 1) {
+          edges {
+            node {
+              price
+              id
+            }
+          }
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+    }
+  }
+}
+
+`
+
 export function ResourceListExample() {
-  const { loading, error, data, refetch } = useQuery(GET_PRODUCTS);
+  let loading = true;
+  let error = null;
+  let data = null;
+  let refetch = null;
+
+  let cursor = null;
+
+  { loading, error, data, refetch } = useQuery(GET_PRODUCTS, {
+    variables: {
+      count: PRODUCTS_COUNT_ON_PAGE,
+      cursor: cursor,
+    },
+  });
+
+  /*
+  useEffect(() => {
+    let { loading, error, data, refetch } = useQuery(GET_PRODUCTS, {
+      variables: {
+        count: PRODUCTS_COUNT_ON_PAGE,
+        cursor: cursor,
+      },
+    });
+  }, [loading, error, data, refetch, cursor]);
+  */
 
   if (!loading) {
     console.log('data ', data);
     console.log('error ', error);
   }
-
-  //if (loading) return <Loading />;
 
   if (loading) return <Loading />;
 
@@ -72,7 +134,31 @@ export function ResourceListExample() {
   }
   */
 
+  const handleNext = useCallback(
+    () => {
+      console.log('handleNext');
+      cursor = data.products.edges[data.products.edges.length-1].cursor;
+      console.log('handleNext cursor ', cursor);
+      const tmp = useQuery(GET_PRODUCTS, {
+        variables: {
+          count: PRODUCTS_COUNT_ON_PAGE,
+          cursor: cursor,
+        },
+      });
+      data = tmp.data;
+    },
+    [loading, error, data, refetch, cursor]
+  );
+
+  const handlePrevious = useCallback(
+    () => {
+      console.log('handlePrevious');
+    },
+    [data]
+  );
+
   return (
+    <div>
     <ResourceList // Defines your resource list component
       showHeader
       resourceName={{ singular: "Product", plural: "Products" }}
@@ -107,5 +193,12 @@ export function ResourceListExample() {
         );
       }}
     />
+    <Pagination
+      hasPrevious = {data.products.pageInfo.hasPreviousPage}
+      onPrevious = {handlePrevious}
+      hasNext = {data.products.pageInfo.hasNextPage}
+      onNext = {handleNext}
+    />
+    </div>
   );
 }
