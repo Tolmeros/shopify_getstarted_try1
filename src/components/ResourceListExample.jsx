@@ -1,5 +1,5 @@
 import React, {useCallback, useState, useEffect} from 'react';
-import { gql, useQuery } from "@apollo/client";
+import { gql, useQuery, useLazyQuery } from "@apollo/client";
 import {
   Avatar,
   Button,
@@ -22,6 +22,7 @@ const GET_PRODUCTS = gql`
 query {
   products(first: 10) {
     edges {
+      cursor
       node {
         id
         title
@@ -52,9 +53,48 @@ query {
     }
   }
 }
-`;
+`
 
 const GET_PRODUCTS_PAGED = gql`
+query GetProductsPaged($countNext: Int, $cursorNext: String,
+                       $countPrev: Int, $cursorPrev: String) {
+  products(first: $countNext, after: $cursorNext,
+           last: $countPrev, before: $cursorPrev) {
+    edges {
+      cursor
+      node {
+        id
+        title
+        handle
+        descriptionHtml
+        images(first: 1) {
+          edges {
+            node {
+              id
+              originalSrc
+              altText
+            }
+          }
+        }
+        variants(first: 1) {
+          edges {
+            node {
+              price
+              id
+            }
+          }
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+    }
+  }
+}
+`
+
+const GET_PRODUCTS_PAGED_NEXT = gql`
 query GetProductsPaged($count: Int, $cursor: String) {
   products(first: $count, after: $cursor) {
     edges {
@@ -89,33 +129,68 @@ query GetProductsPaged($count: Int, $cursor: String) {
     }
   }
 }
+`
 
+const GET_PRODUCTS_PAGED_PREV = gql`
+query GetProductsPaged($count: Int, $cursor: String) {
+  products(last: $count, before: $cursor) {
+    edges {
+      cursor
+      node {
+        id
+        title
+        handle
+        descriptionHtml
+        images(first: 1) {
+          edges {
+            node {
+              id
+              originalSrc
+              altText
+            }
+          }
+        }
+        variants(first: 1) {
+          edges {
+            node {
+              price
+              id
+            }
+          }
+        }
+      }
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+    }
+  }
+}
 `
 
 export function ResourceListExample() {
-  let loading = true;
-  let error = null;
-  let data = null;
-  let refetch = null;
-
-  let cursor = null;
-
-  { loading, error, data, refetch } = useQuery(GET_PRODUCTS, {
-    variables: {
-      count: PRODUCTS_COUNT_ON_PAGE,
-      cursor: cursor,
-    },
-  });
+  //const [getProducts, { loading, error, data }] = useLazyQuery(GET_PRODUCTS_PAGED_NEXT);
+  //GET_PRODUCTS
 
   /*
+  const [products, setProducts] = useState({
+    edges: [],
+    pageInfo: {
+      "hasNextPage": false,
+      "hasPreviousPage": false,
+    }
+  });
+  */
+
+  //const { loading, error, data } = useQuery(GET_PRODUCTS);
+  const [getProducts, { loading, error, data }] = useLazyQuery(GET_PRODUCTS);
+
+  //getProducts();
+  
+  /*
   useEffect(() => {
-    let { loading, error, data, refetch } = useQuery(GET_PRODUCTS, {
-      variables: {
-        count: PRODUCTS_COUNT_ON_PAGE,
-        cursor: cursor,
-      },
-    });
-  }, [loading, error, data, refetch, cursor]);
+    getProducts();
+  }, []);
   */
 
   if (!loading) {
@@ -123,14 +198,9 @@ export function ResourceListExample() {
     console.log('error ', error);
   }
 
-  if (loading) return <Loading />;
-
   /*
-  if (error) {
-    console.warn(error);
-    return (
-      <Banner status="critical">There was an issue loading products.</Banner>
-    );
+  if (data && data.products) {
+    setProducts(data.products);
   }
   */
 
@@ -139,23 +209,40 @@ export function ResourceListExample() {
       console.log('handleNext');
       cursor = data.products.edges[data.products.edges.length-1].cursor;
       console.log('handleNext cursor ', cursor);
-      const tmp = useQuery(GET_PRODUCTS, {
+      getProducts({
         variables: {
-          count: PRODUCTS_COUNT_ON_PAGE,
-          cursor: cursor,
-        },
+          countNext: PRODUCTS_COUNT_ON_PAGE,
+          cursorNext: cursor,
+        }
       });
-      data = tmp.data;
     },
-    [loading, error, data, refetch, cursor]
+    []
   );
 
   const handlePrevious = useCallback(
     () => {
       console.log('handlePrevious');
+      cursor = data.products.edges[0].cursor;
+      console.log('handlePrevious cursor ', cursor);
+      getProducts({
+        variables: {
+          countPrev: PRODUCTS_COUNT_ON_PAGE,
+          cursorPrev: cursor,
+        }
+      });
     },
-    [data]
+    []
   );
+
+  if (loading) return <Loading />;
+
+  if (error) {
+    console.warn(error);
+    return (
+      <Banner status="critical">There was an issue loading products.</Banner>
+    );
+  }
+
 
   return (
     <div>
