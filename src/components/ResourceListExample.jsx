@@ -1,4 +1,4 @@
-import React, {useCallback, useState, useEffect} from 'react';
+import React, {useCallback, useState, useEffect, useMemo} from 'react';
 import { gql, useQuery, useLazyQuery } from "@apollo/client";
 import {
   Avatar,
@@ -168,6 +168,8 @@ query GetProductsPaged($count: Int, $cursor: String) {
 }
 `
 
+var mdata = null;
+
 export function ResourceListExample() {
   const [getProducts, { loading, error, data }] = useLazyQuery(GET_PRODUCTS_PAGED);
 
@@ -186,16 +188,14 @@ export function ResourceListExample() {
     console.log('error ', error);
   }
 
-  /*
-  if (data && data.products) {
-    setProducts(data.products);
+  if (data) {
+    mdata = data;
   }
-  */
 
   const handleNext = useCallback(
     () => {
       console.log('handleNext');
-      const cursor = data.products.edges[data.products.edges.length-1].cursor;
+      const cursor = mdata.products.edges[data.products.edges.length-1].cursor;
       //useMemo
 
       //вынести в location
@@ -208,13 +208,13 @@ export function ResourceListExample() {
         }
       });
     },
-    [getProducts, data]
+    [getProducts, mdata]
   );
 
   const handlePrevious = useCallback(
     () => {
       console.log('handlePrevious');
-      const cursor = data.products.edges[0].cursor;
+      const cursor = mdata.products.edges[0].cursor;
       console.log('handlePrevious cursor ', cursor);
       getProducts({
         variables: {
@@ -223,10 +223,10 @@ export function ResourceListExample() {
         }
       });
     },
-    [getProducts, data]
+    [getProducts, mdata]
   );
 
-  if (loading) return <Loading />;
+  if (!mdata && loading) return <Loading />;
 
   if (error) {
     console.warn(error);
@@ -236,13 +236,14 @@ export function ResourceListExample() {
   }
 
   return (
-    <div>
-    { data && (
-      <div>
+    <React.Fragment>
+    { mdata && (
+      <React.Fragment>
       <ResourceList // Defines your resource list component
         showHeader
         resourceName={{ singular: "Product", plural: "Products" }}
-        items={data.products.edges}
+        loading={loading}
+        items={mdata.products.edges}
         renderItem={(item) => {
           const media = (
             <Thumbnail
@@ -274,13 +275,13 @@ export function ResourceListExample() {
         }}
       />
       <Pagination
-        hasPrevious = {data.products.pageInfo.hasPreviousPage}
+        hasPrevious = {mdata.products.pageInfo.hasPreviousPage}
         onPrevious = {handlePrevious}
-        hasNext = {data.products.pageInfo.hasNextPage}
+        hasNext = {mdata.products.pageInfo.hasNextPage}
         onNext = {handleNext}
       />
-      </div>
+      </React.Fragment>
     )}
-    </div>
+    </React.Fragment>
   );
 }
