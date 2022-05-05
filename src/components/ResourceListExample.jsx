@@ -20,9 +20,11 @@ const PRODUCTS_COUNT_ON_PAGE = 10;
 
 const GET_PRODUCTS_PAGED = gql`
 query GetProductsPaged($countNext: Int, $cursorNext: String,
-                       $countPrev: Int, $cursorPrev: String) {
+                       $countPrev: Int, $cursorPrev: String,
+                       $orderReverse: Boolean) {
   products(first: $countNext, after: $cursorNext,
-           last: $countPrev, before: $cursorPrev) {
+           last: $countPrev, before: $cursorPrev,
+           reverse: $orderReverse, sortKey: TITLE) {
     edges {
       cursor
       node {
@@ -59,7 +61,12 @@ query GetProductsPaged($countNext: Int, $cursorNext: String,
 
 var mdata = null;
 
+const TITLE_AZ='TITLE_AZ';
+const TITLE_ZA='TITLE_ZA';
+
 export function ResourceListExample() {
+  const [sortValue, setSortValue] = useState(TITLE_AZ);
+
   const [getProducts, { loading, error, data }] = useLazyQuery(GET_PRODUCTS_PAGED);
 
   useEffect(() => {
@@ -67,6 +74,7 @@ export function ResourceListExample() {
     getProducts({
       variables: {
         countNext: PRODUCTS_COUNT_ON_PAGE,
+        orderReverse: false,
       }
     });
   }, []);
@@ -94,6 +102,8 @@ export function ResourceListExample() {
         variables: {
           countNext: PRODUCTS_COUNT_ON_PAGE,
           cursorNext: cursor,
+          countPrev: null,
+          cursorPrev: null,
         }
       });
     },
@@ -109,6 +119,8 @@ export function ResourceListExample() {
         variables: {
           countPrev: PRODUCTS_COUNT_ON_PAGE,
           cursorPrev: cursor,
+          countNext: null,
+          cursorNext: null,
         }
       });
     },
@@ -133,35 +145,26 @@ export function ResourceListExample() {
         resourceName={{ singular: "Product", plural: "Products" }}
         loading={loading}
         items={mdata.products.edges}
-        renderItem={(item) => {
-          const media = (
-            <Thumbnail
-              source={
-                item.node.images.edges[0] ? item.node.images.edges[0].node.originalSrc : ""
-              }
-              alt={item.node.images.edges[0] ? item.node.images.edges[0].node.altText : ""}
-            />
-          );
-          const price = item.node.variants.edges[0].node.price;
-          return (
-            <ResourceList.Item
-              id={item.node.id}
-              media={media}
-              accessibilityLabel={`View details for ${item.title}`}
-            >
-              <Stack>
-                <Stack.Item fill>
-                  <h3>
-                    <TextStyle variation="strong">{item.node.title}</TextStyle>
-                  </h3>
-                </Stack.Item>
-                <Stack.Item>
-                  <p>${price}</p>
-                </Stack.Item>
-              </Stack>
-            </ResourceList.Item>
-          );
+        sortValue={sortValue}
+        sortOptions={[
+          {label: 'title Z-A', value: TITLE_ZA},
+          {label: 'title A-Z', value: TITLE_AZ},
+        ]}
+        onSortChange={(selected) => {
+          setSortValue(selected);
+          console.log(`Sort option changed to ${selected}.`);
+          const orderReverse = (selected !== TITLE_AZ);
+          getProducts({
+            variables: {
+              countNext: PRODUCTS_COUNT_ON_PAGE,
+              orderReverse,
+              countPrev: null,
+              cursorPrev: null,
+              cursorNext: null,
+            }
+          });
         }}
+        renderItem={renderItem}
       />
       <Pagination
         hasPrevious = {mdata.products.pageInfo.hasPreviousPage}
@@ -173,4 +176,34 @@ export function ResourceListExample() {
     )}
     </React.Fragment>
   );
+
+  function renderItem(item) {
+    const media = (
+      <Thumbnail
+        source={
+          item.node.images.edges[0] ? item.node.images.edges[0].node.originalSrc : ""
+        }
+        alt={item.node.images.edges[0] ? item.node.images.edges[0].node.altText : ""}
+      />
+    );
+    const price = item.node.variants.edges[0].node.price;
+    return (
+      <ResourceList.Item
+        id={item.node.id}
+        media={media}
+        accessibilityLabel={`View details for ${item.title}`}
+      >
+        <Stack>
+          <Stack.Item fill>
+            <h3>
+              <TextStyle variation="strong">{item.node.title}</TextStyle>
+            </h3>
+          </Stack.Item>
+          <Stack.Item>
+            <p>${price}</p>
+          </Stack.Item>
+        </Stack>
+      </ResourceList.Item>
+    );
+  }
 }
