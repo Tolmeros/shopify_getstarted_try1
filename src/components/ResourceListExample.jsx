@@ -21,10 +21,12 @@ const PRODUCTS_COUNT_ON_PAGE = 10;
 const GET_PRODUCTS_PAGED = gql`
 query GetProductsPaged($countNext: Int, $cursorNext: String,
                        $countPrev: Int, $cursorPrev: String,
-                       $orderReverse: Boolean) {
+                       $orderReverse: Boolean,
+                       $queryStr: String) {
   products(first: $countNext, after: $cursorNext,
            last: $countPrev, before: $cursorPrev,
-           reverse: $orderReverse, sortKey: TITLE) {
+           reverse: $orderReverse, sortKey: TITLE,
+           query: $queryStr) {
     edges {
       cursor
       node {
@@ -66,8 +68,32 @@ const TITLE_ZA='TITLE_ZA';
 
 export function ResourceListExample() {
   const [sortValue, setSortValue] = useState(TITLE_AZ);
+  const [taggedWith, setTaggedWith] = useState(null);
+  const [queryValue, setQueryValue] = useState(null);
 
   const [getProducts, { loading, error, data }] = useLazyQuery(GET_PRODUCTS_PAGED);
+
+  const handleTaggedWithChange = useCallback(
+    (value) => setTaggedWith(value),
+    [],
+  );
+  const handleQueryValueChange = useCallback(
+    (value) => {
+      getProducts({
+        variables: {
+          queryStr: value,
+        }
+      });
+      setQueryValue(value)
+    },
+    [],
+  );
+  const handleTaggedWithRemove = useCallback(() => setTaggedWith(null), []);
+  const handleQueryValueRemove = useCallback(() => setQueryValue(null), []);
+  const handleClearAll = useCallback(() => {
+    handleTaggedWithRemove();
+    handleQueryValueRemove();
+  }, [handleQueryValueRemove, handleTaggedWithRemove]);
 
   useEffect(() => {
     //console.log('getProducts ');
@@ -78,6 +104,56 @@ export function ResourceListExample() {
       }
     });
   }, []);
+
+  const filters = [
+    {
+      key: 'taggedWith3',
+      label: 'Tagged with',
+      filter: (
+        <TextField
+          label="Tagged with"
+          value={taggedWith}
+          onChange={handleTaggedWithChange}
+          autoComplete="off"
+          labelHidden
+        />
+      ),
+      shortcut: true,
+    },
+  ];
+
+  function isEmpty(value) {
+    if (Array.isArray(value)) {
+      return value.length === 0;
+    } else {
+      return value === '' || value == null;
+    }
+  }
+
+  const appliedFilters = !isEmpty(taggedWith)
+    ? [
+        {
+          key: 'taggedWith3',
+          label: disambiguateLabel('taggedWith3', taggedWith),
+          onRemove: handleTaggedWithRemove,
+        },
+      ]
+    : [];
+
+  const filterControl = (
+    <Filters
+      queryValue={queryValue}
+      filters={filters}
+      appliedFilters={appliedFilters}
+      onQueryChange={handleQueryValueChange}
+      onQueryClear={handleQueryValueRemove}
+      onClearAll={handleClearAll}
+    >
+      <div style={{paddingLeft: '8px'}}>
+        <Button onClick={() => console.log('New filter saved')}>Save</Button>
+      </div>
+    </Filters>
+  );
   
 
   if (!loading) {
@@ -165,6 +241,7 @@ export function ResourceListExample() {
           });
         }}
         renderItem={renderItem}
+        filterControl={filterControl}
       />
       <Pagination
         hasPrevious = {mdata.products.pageInfo.hasPreviousPage}
