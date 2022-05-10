@@ -79,9 +79,11 @@ export function ResourceListExample() {
   );
   const handleQueryValueChange = useCallback(
     (value) => {
+      const tmp = value ? `title:${value}*` : '';
+
       getProducts({
         variables: {
-          queryStr: value,
+          queryStr: tmp,
         }
       });
       setQueryValue(value)
