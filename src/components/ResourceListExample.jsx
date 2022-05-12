@@ -1,4 +1,5 @@
 import React, {useCallback, useState, useEffect, useMemo} from 'react';
+import { useNavigate } from "react-router-dom";
 import { gql, useQuery, useLazyQuery } from "@apollo/client";
 import {
   Avatar,
@@ -72,6 +73,8 @@ export function ResourceListExample() {
   const [queryValue, setQueryValue] = useState(null);
 
   const [getProducts, { loading, error, data }] = useLazyQuery(GET_PRODUCTS_PAGED);
+
+  const navigate = useNavigate(); 
 
   const handleTaggedWithChange = useCallback(
     (value) => setTaggedWith(value),
@@ -214,10 +217,22 @@ export function ResourceListExample() {
     );
   }
 
+  const routeChange = () => { 
+    let path = `/new`; 
+    navigate(path);
+  }
+
   return (
     <React.Fragment>
     { mdata && (
       <React.Fragment>
+      <Button
+        primary
+        loading={loading}
+        onClick={routeChange}
+      >
+        New
+      </Button>
       <ResourceList // Defines your resource list component
         showHeader
         resourceName={{ singular: "Product", plural: "Products" }}

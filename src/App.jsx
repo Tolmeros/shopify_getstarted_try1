@@ -5,6 +5,12 @@ import {
   InMemoryCache,
 } from "@apollo/client";
 import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  NavLink as Link,
+} from "react-router-dom";
+import {
   Provider as AppBridgeProvider,
   useAppBridge,
 } from "@shopify/app-bridge-react";
@@ -15,6 +21,9 @@ import translations from "@shopify/polaris/locales/en.json";
 import "@shopify/polaris/build/esm/styles.css";
 
 import { HomePage } from "./components/HomePage";
+import { ResourceListExample } from "./components/ResourceListExample";
+import { NewItem } from "./components/NewItem";
+import RouterProvider from "./providers/RouterProvider";
 
 export default function App() {
   return (
@@ -27,7 +36,16 @@ export default function App() {
         }}
       >
         <MyProvider>
-          <HomePage />
+        <Router>
+          <RouterProvider>
+            <Routes>
+              <Route exact path="/" element={<ResourceListExample />} />
+              <Route exact path="/new" element={<NewItem />} />
+              <Route exact path="/edit" element={<HomePage />} />
+            </Routes>
+          </RouterProvider>
+        </Router>
+        {/* <HomePage /> */}
         </MyProvider>
       </AppBridgeProvider>
     </PolarisProvider>
