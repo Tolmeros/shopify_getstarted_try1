@@ -1,5 +1,5 @@
 import React, {useCallback, useState, useEffect, useMemo} from 'react';
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { gql, useQuery, useLazyQuery } from "@apollo/client";
 import {
   Avatar,
@@ -68,9 +68,19 @@ const TITLE_AZ='TITLE_AZ';
 const TITLE_ZA='TITLE_ZA';
 
 export function ResourceListExample() {
-  const [sortValue, setSortValue] = useState(TITLE_AZ);
   const [taggedWith, setTaggedWith] = useState(null);
-  const [queryValue, setQueryValue] = useState(null);
+
+  /*
+  const [searchParams, setSearchParams] = useSearchParams(new URLSearchParams({
+    sortValue: TITLE_AZ,
+    queryValue: '',
+  }));
+  */
+
+  const [searchParams, setSearchParams] = useSearchParams({
+    sortValue: TITLE_AZ,
+    queryValue: '',
+  });
 
   const [getProducts, { loading, error, data }] = useLazyQuery(GET_PRODUCTS_PAGED);
 
@@ -92,9 +102,13 @@ export function ResourceListExample() {
           cursorPrev: null,
         }
       });
-      setQueryValue(value)
+      console.log('handleQueryValueChange', searchParams);
+      setSearchParams({
+        sortValue: searchParams.get('sortValue'),
+        queryValue: value,
+      });
     },
-    [],
+    [searchParams, setSearchParams],
   );
   const handleTaggedWithRemove = useCallback(() => setTaggedWith(null), []);
   const handleQueryValueRemove = useCallback(() => setQueryValue(null), []);
@@ -104,11 +118,15 @@ export function ResourceListExample() {
   }, [handleQueryValueRemove, handleTaggedWithRemove]);
 
   useEffect(() => {
-    //console.log('getProducts ');
+
+    const queryValue = searchParams.get('queryValue');
+
+    const tmp = queryValue ? `title:${queryValue}*` : '';
     getProducts({
       variables: {
         countNext: PRODUCTS_COUNT_ON_PAGE,
-        orderReverse: false,
+        orderReverse: (searchParams.get('sortValue') !== TITLE_AZ),
+        queryStr: tmp,
       }
     });
   }, []);
@@ -150,7 +168,7 @@ export function ResourceListExample() {
 
   const filterControl = (
     <Filters
-      queryValue={queryValue}
+      queryValue={searchParams.get('queryValue')}
       filters={filters}
       appliedFilters={appliedFilters}
       onQueryChange={handleQueryValueChange}
@@ -241,13 +259,17 @@ export function ResourceListExample() {
         resourceName={{ singular: "Product", plural: "Products" }}
         loading={loading}
         items={mdata.products.edges}
-        sortValue={sortValue}
+        sortValue={searchParams.get('sortValue')}
         sortOptions={[
           {label: 'title Z-A', value: TITLE_ZA},
           {label: 'title A-Z', value: TITLE_AZ},
         ]}
         onSortChange={(selected) => {
-          setSortValue(selected);
+          //setSortValue(selected);
+          setSearchParams({
+            queryValue: searchParams.get('queryValue'),
+            sortValue: selected,
+          });
           console.log(`Sort option changed to ${selected}.`);
           const orderReverse = (selected !== TITLE_AZ);
           getProducts({

@@ -9,7 +9,6 @@ function RouterProvider({navigate, children}) {
     },
   }
   const location = useLocation();
-  console.log('RouterProvider', location);
   return (
   <React.Fragment>
     <ClientRouter history={history} />
