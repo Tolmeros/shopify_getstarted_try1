@@ -87,6 +87,9 @@ export function ResourceListExample() {
       getProducts({
         variables: {
           queryStr: tmp,
+          countNext: PRODUCTS_COUNT_ON_PAGE,
+          cursorNext: null,
+          cursorPrev: null,
         }
       });
       setQueryValue(value)
