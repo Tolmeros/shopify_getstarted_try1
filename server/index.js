@@ -4,7 +4,9 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { Shopify, ApiVersion } from "@shopify/shopify-api";
 import "dotenv/config";
+import mongoose from "mongoose";
 
+import sessionModel from "./models/session.js";
 import applyAuthMiddleware from "./middleware/auth.js";
 import verifyRequest from "./middleware/verify-request.js";
 
@@ -14,22 +16,64 @@ const TOP_LEVEL_OAUTH_COOKIE = "shopify_top_level_oauth";
 const PORT = parseInt(process.env.PORT || "8081", 10);
 const isTest = process.env.NODE_ENV === "test" || !!process.env.VITE_TEST_BUILD;
 
-const storeCallback = (session) => {
-  console.log('storeCallback session', session);
+const dbUri = `mongodb://${process.env.MONGODB_USER}:${process.env.MONGODB_PASSWORD}` +
+              `@${process.env.MONGODB_HOST}/${process.env.MONGODB_DB}`
 
-  //return true; false;
+mongoose.connect(dbUri);
+
+const storeCallback = async (session) => {
+  console.log('storeCallback session', session);
+  let dbSession = await sessionModel.findOne({id: session.id}).exec();
+  console.log('dbSession', dbSession);
+  //console.log('dbSession.entries ', dbSession.entries);
+
+  console.log('dbSession.data ', dbSession.data);
+
+  if (!dbSession) {
+    dbSession = await sessionModel.create(session);
+    if (!dbSession) {
+      console.log('create failed');
+      return false;
+    }
+    return true;
+  }
+
+  dbSession.shop = session.shop;
+  dbSession.state = session.state;
+  dbSession.isOnline = session.isOnline;
+
+  await dbSession.save();
+
+  return true;
 }
 
-const loadCallback = (id) => {
+const loadCallback = async (id) => {
   console.log('loadCallback id', id);
+
+  let dbSession = await sessionModel.findOne({id: id}).exec();
+  console.log('dbSession', dbSession);
+
+  if (dbSession) {
+    return new Shopify.Session.Session(
+      dbSession.id,
+      dbSession.shop,
+      dbSession.state,
+      dbSession.isOnline,
+    )
+  }
+
+  return undefined;
 
   //return this.sessions[id] || undefined;
 }
 
-const deleteCallback = (id) => {
+const deleteCallback = async (id) => {
   console.log('deleteCallback id', id);
+  let dbSession = await sessionModel.findOneAndRemove({id: id});
+  console.log('deleteCallback dbSession', dbSession);
 
   //return true; false;
+  return true;
 }
 
 Shopify.Context.initialize({
