@@ -7,6 +7,7 @@ import "dotenv/config";
 import mongoose from "mongoose";
 
 import sessionModel from "./models/session.js";
+import {sessionFromEntries, sessionEntries} from './helpers/session-utils.js';
 import applyAuthMiddleware from "./middleware/auth.js";
 import verifyRequest from "./middleware/verify-request.js";
 
@@ -16,6 +17,7 @@ const TOP_LEVEL_OAUTH_COOKIE = "shopify_top_level_oauth";
 const PORT = parseInt(process.env.PORT || "8081", 10);
 const isTest = process.env.NODE_ENV === "test" || !!process.env.VITE_TEST_BUILD;
 
+
 const dbUri = `mongodb://${process.env.MONGODB_USER}:${process.env.MONGODB_PASSWORD}` +
               `@${process.env.MONGODB_HOST}/${process.env.MONGODB_DB}`
 
@@ -23,14 +25,21 @@ mongoose.connect(dbUri);
 
 const storeCallback = async (session) => {
   console.log('storeCallback session', session);
+  const entries = sessionEntries(session);
+  console.log('storeCallback entries', entries);
+
   let dbSession = await sessionModel.findOne({id: session.id}).exec();
   console.log('dbSession', dbSession);
   //console.log('dbSession.entries ', dbSession.entries);
 
-  console.log('dbSession.data ', dbSession.data);
+  //console.log('dbSession.data ', dbSession.data);
 
   if (!dbSession) {
-    dbSession = await sessionModel.create(session);
+    //dbSession = await sessionModel.create(session);
+    dbSession = await sessionModel.create({
+      id: session.id,
+      entries,
+    });
     if (!dbSession) {
       console.log('create failed');
       return false;
@@ -38,11 +47,16 @@ const storeCallback = async (session) => {
     return true;
   }
 
+  /*
   dbSession.shop = session.shop;
   dbSession.state = session.state;
   dbSession.isOnline = session.isOnline;
-
   await dbSession.save();
+
+  */
+
+  dbSession = await Character.findOneAndUpdate({id: session.id}, entries);
+  console.log('storeCallback findOneAndUpdate ', dbSession);
 
   return true;
 }
@@ -54,12 +68,15 @@ const loadCallback = async (id) => {
   console.log('dbSession', dbSession);
 
   if (dbSession) {
+    /*
     return new Shopify.Session.Session(
       dbSession.id,
       dbSession.shop,
       dbSession.state,
       dbSession.isOnline,
     )
+    */
+    return sessionFromEntries(dbSession.entries);
   }
 
   return undefined;
@@ -76,6 +93,11 @@ const deleteCallback = async (id) => {
   return true;
 }
 
+/*
+const dbUri2 = `mongodb://${process.env.MONGODB_USER}:${process.env.MONGODB_PASSWORD}` +
+              `@${process.env.MONGODB_HOST}/`
+*/
+
 Shopify.Context.initialize({
   API_KEY: process.env.SHOPIFY_API_KEY,
   API_SECRET_KEY: process.env.SHOPIFY_API_SECRET,
@@ -85,11 +107,23 @@ Shopify.Context.initialize({
   IS_EMBEDDED_APP: true,
   // This should be replaced with your preferred storage strategy
   //SESSION_STORAGE: new Shopify.Session.MemorySessionStorage(),
+  
   SESSION_STORAGE: new Shopify.Session.CustomSessionStorage(
     storeCallback,
     loadCallback,
     deleteCallback,
   ),
+  
+  /*
+  SESSION_STORAGE: Shopify.Session.MongoDBSessionStorage.withCredentials(
+    process.env.MONGODB_HOST,
+    process.env.MONGODB_DB,
+    process.env.MONGODB_USER,
+    process.env.MONGODB_PASSWORD,
+  ),
+  */
+  //SESSION_STORAGE: new Shopify.Session.MongoDBSessionStorage(dbUri2, process.env.MONGODB_PASSWORD),
+
 });
 
 // Storing the currently active shops in memory will force them to re-login when your server restarts. You should
